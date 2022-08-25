@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -21,24 +22,30 @@ namespace FileSignature.Logic.Internal
 
         public IEnumerable<SignaturePart> Read()
         {
-            using(var state = new SignatureReaderState())
+            using(_state = new SignatureReaderState())
             {
-                state.fileStream = File.OpenRead(_fileName);
+                _state.fileStream = File.OpenRead(_fileName);
 
-                state.totalBlocks = CalcTotalBlocks(state.fileStream.Length);
-                var calculatingThreadsCount = GetCalculatingThreadsCount(state.totalBlocks);
-                
-                state.readingThread = new Thread(ReadingThreadCode);
-                state.readingThread.Start();
+                _state.totalBlocks = CalcTotalBlocks(_state.fileStream.Length);
+                var calculatingThreadsCount = GetCalculatingThreadsCount(_state.totalBlocks);
 
-                state.calculatingThreads = new List<Thread>(calculatingThreadsCount);
+                _state.inputQueue = new Queue<InputQueueElement>(calculatingThreadsCount);
+                _state.outputQueue = new SortedSet<SignaturePart>();
+
+                _state.readingThread = new Thread(ReadingThreadCode);
+                _state.readingThread.Start();
+
+                _state.calculatingThreads = new List<Thread>(calculatingThreadsCount);
                 for (int i = 0; i < calculatingThreadsCount; i++)
                 {
                     var calculatingThread = new Thread(CalculatingThreadCode);
                     calculatingThread.Start();
 
-                    state.calculatingThreads.Add(calculatingThread);
+                    _state.calculatingThreads.Add(calculatingThread);
                 }
+
+                // wait for output queue
+
                 
             }
 
@@ -67,12 +74,49 @@ namespace FileSignature.Logic.Internal
 
         public void ReadingThreadCode()
         {
-            
+            long currentBlockNumber = 0L;
+
+            while(_state.fileStream.Position < _state.fileStream.Length)
+            {
+                // wait here if queue is full
+
+                var element = new InputQueueElement
+                {
+                    BlockNumber = currentBlockNumber++,
+                    buffer = new byte[_blockSize]
+                };
+
+                element.bufferLength = _state.fileStream
+                    .Read(element.buffer, 0, _blockSize);
+
+                _state.inputQueue.Enqueue(element);
+                // notice calculation threads
+            }
         }
 
         public void CalculatingThreadCode()
         {
+            using var hashAlgorithm = SHA256.Create();
+            var enough = false;
 
+            while (!enough)
+            {
+                // wait for new element
+
+                var element = _state.inputQueue.Dequeue();
+
+                var signaturePart = new SignaturePart
+                {
+                    PartNumber = element.BlockNumber,
+                    TotalParts = _state.totalBlocks,
+                    Hash = hashAlgorithm.ComputeHash(element.buffer, 0, element.bufferLength)
+                };
+
+                _state.outputQueue.Add(signaturePart);
+
+                // notice reader to read next block
+
+            }
         }
     }
 }

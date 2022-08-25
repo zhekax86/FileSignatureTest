@@ -8,9 +8,9 @@ namespace FileSignature.Logic
 {
     public class SignaturePart
     {
-        public int PartNumber { get; set; }
+        public long PartNumber { get; set; }
 
-        public int TotalParts { get; set; }
+        public long TotalParts { get; set; }
 
         public byte[] Hash { get; set; }
     }
