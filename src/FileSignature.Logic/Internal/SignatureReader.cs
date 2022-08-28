@@ -34,6 +34,7 @@ namespace FileSignature.Logic.Internal
 
                 _state.inputQueueSemaphore = new Semaphore(0, int.MaxValue);
                 _state.nextBlockNeededEvent = new AutoResetEvent(false);
+                _state.newOutputElementEvent = new AutoResetEvent(false);
 
                 _state.readingThread = new Thread(new ReadingThreadCode(_state).Run);
                 _state.readingThread.Start();
@@ -47,13 +48,53 @@ namespace FileSignature.Logic.Internal
                     _state.calculatingThreads.Add(calculatingThread);
                 }
 
-                // wait for output queue
+                foreach(var val in ReadOutputQueue())
+                    yield return val;
 
                 
             }
-
-            yield return new SignaturePart();
         }
+
+        public IEnumerable<SignaturePart> ReadOutputQueue()
+        {
+            long currentBlock = 0L;
+
+            while (currentBlock < _state.totalBlocks)
+            {
+                yield return GetBlock(currentBlock);
+                currentBlock++;
+            }
+        }
+
+        public SignaturePart GetBlock(long blockNumber)
+        {
+            long minBlockNumber;
+
+            while (true)
+            {
+
+                lock (_state.outputQueue)
+                {
+                    var minBlock = _state.outputQueue.Min;
+
+                    if (minBlock == null)
+                        minBlockNumber = -1L;
+                    else
+                    {
+                        minBlockNumber = minBlock.PartNumber;
+                        if (minBlockNumber == blockNumber)
+                        {
+                            _state.outputQueue.Remove(minBlock);
+                            return minBlock;
+                        }
+                    }
+                }
+
+                _state.newOutputElementEvent.WaitOne();
+            }
+        }
+
+
 
         public long CalcTotalBlocks(long fileSize)
         {

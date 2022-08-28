@@ -21,7 +21,7 @@ namespace FileSignature.Logic.Internal
 
             while (_state.fileStream.Position < _state.fileStream.Length)
             {
-                // wait here if queue is full
+                WaitIfInputQueueIsFull();
 
                 var element = new InputQueueElement
                 {
@@ -32,9 +32,22 @@ namespace FileSignature.Logic.Internal
                 element.bufferLength = _state.fileStream
                     .Read(element.buffer, 0, _state.BlockSize);
 
-                _state.inputQueue.Enqueue(element);
+                lock (_state.inputQueue)
+                    _state.inputQueue.Enqueue(element);
+                
                 _state.inputQueueSemaphore.Release();
             }
+        }
+
+        public void WaitIfInputQueueIsFull()
+        {
+            int queueLength;
+
+            lock (_state.inputQueue)
+                queueLength = _state.inputQueue.Count;
+
+            if (queueLength >= _state.MaxInputQueueLength)
+                _state.nextBlockNeededEvent.WaitOne();
         }
     }
 }

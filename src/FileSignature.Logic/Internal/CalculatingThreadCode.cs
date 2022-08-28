@@ -26,7 +26,10 @@ namespace FileSignature.Logic.Internal
                 // wait for new element
                 _state.inputQueueSemaphore.WaitOne();
 
-                var element = _state.inputQueue.Dequeue();
+                InputQueueElement element;
+                lock (_state.inputQueue) 
+                    element = _state.inputQueue.Dequeue();
+                _state.nextBlockNeededEvent.Set();
 
                 var signaturePart = new SignaturePart
                 {
@@ -35,10 +38,11 @@ namespace FileSignature.Logic.Internal
                     Hash = hashAlgorithm.ComputeHash(element.buffer, 0, element.bufferLength)
                 };
 
-                _state.outputQueue.Add(signaturePart);
-
+                lock (_state.outputQueue)
+                    _state.outputQueue.Add(signaturePart);
+                
                 // notice reader to read next block
-                _state.nextBlockNeededEvent.Set();
+                _state.newOutputElementEvent.Set();
             }
         }
     }

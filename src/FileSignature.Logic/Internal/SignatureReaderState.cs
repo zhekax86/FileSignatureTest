@@ -9,6 +9,7 @@ namespace FileSignature.Logic.Internal
     public class SignatureReaderState : IDisposable
     {
         public int BlockSize;
+        public int MaxInputQueueLength;
 
         public FileStream fileStream;
         public Thread readingThread;
@@ -19,6 +20,7 @@ namespace FileSignature.Logic.Internal
 
         public Semaphore inputQueueSemaphore;
         public AutoResetEvent nextBlockNeededEvent;
+        public AutoResetEvent newOutputElementEvent;
         
         public long totalBlocks;
 
@@ -27,6 +29,7 @@ namespace FileSignature.Logic.Internal
             fileStream?.Dispose();
             inputQueueSemaphore?.Dispose();
             nextBlockNeededEvent?.Dispose();
+            newOutputElementEvent?.Dispose();
         }
     }
 }
