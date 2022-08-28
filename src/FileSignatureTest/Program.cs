@@ -36,6 +36,12 @@ internal class Program
 
     private static void ReadSignature(string fileName, int blockSize)
     {
+        if (blockSize > FileReader.MaxSignatureBlockSize)
+        {
+            Console.Write($"Maximum possible block size is {FileReader.MaxSignatureBlockSize}");
+            return;
+        }
+
         var signatureGenerator = FileReader.GetSignature(fileName, blockSize);
 
         foreach (var signaturePart in signatureGenerator)
