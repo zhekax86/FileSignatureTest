@@ -6,7 +6,7 @@ namespace FileSignature.Logic
     {
         public static IEnumerable<SignaturePart> GetSignature(string fileName, int blockSize)
         {
-            var reader = new SignatureReader(fileName, blockSize);
+            var reader = new SignatureGenerator(fileName, blockSize);
             return reader.Read();
         }
     }

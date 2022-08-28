@@ -3,7 +3,7 @@ using FileSignature.Logic.Internal.Models;
 
 namespace FileSignature.Logic.Internal
 {
-    public class SignatureReader
+    public class SignatureGenerator
     {
         private readonly string _fileName;
         private readonly int _blockSize;
@@ -12,7 +12,7 @@ namespace FileSignature.Logic.Internal
 
         private WaitHandle[] _waitHandles;
                 
-        public SignatureReader(string fileName, int blockSize)
+        public SignatureGenerator(string fileName, int blockSize)
         {
             _fileName = fileName;
             _blockSize = blockSize;
@@ -28,10 +28,14 @@ namespace FileSignature.Logic.Internal
                 using (_state = InitializeInfrastructure(fileStream))
                 {
                     StartThreads();
-
-                    foreach (var val in ReadOutputQueue())
-                        yield return val;
-
+                                        
+                    long currentBlock = 1L;
+                    while (currentBlock <= _state.TotalBlocks)
+                    {
+                        yield return GetBlock(currentBlock);
+                        currentBlock++;
+                    }
+                    
                     StopThreads();
                 }
             }
@@ -69,7 +73,7 @@ namespace FileSignature.Logic.Internal
                 for (int i = 0; i < calculatingThreadsCount; i++)
                 {
                     var calculatingThread = new Thread(new CalculatingThreadCode(state).Run);
-                    calculatingThread.Name = $"Calculationg thread #{i}";
+                    calculatingThread.Name = $"Calculating thread #{i}";
                     calculatingThread.IsBackground = true;
                 
                     state.CalculatingThreads.Add(calculatingThread);
@@ -102,24 +106,12 @@ namespace FileSignature.Logic.Internal
                 thread.Join();
         }
 
-        public IEnumerable<SignaturePart> ReadOutputQueue()
-        {
-            long currentBlock = 1L;
-
-            while (currentBlock <= _state.TotalBlocks)
-            {
-                yield return GetBlock(currentBlock);
-                currentBlock++;
-            }
-        }
-
         public SignaturePart GetBlock(long blockNumber)
         {
             long minBlockNumber;
 
             while (true)
             {
-
                 lock (_state.OutputQueue)
                 {
                     var minBlock = _state.OutputQueue.Min;
