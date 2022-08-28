@@ -23,6 +23,7 @@ namespace FileSignature.Logic.Internal.Threads
                     State.Errors.Add(exception);
 
                 State.StopThreadsFlag = true;
+                State.ErrorFlag = true;
                 State.StopThreadsEvent.Set();
             }
         }

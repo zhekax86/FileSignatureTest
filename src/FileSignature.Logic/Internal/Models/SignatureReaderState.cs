@@ -1,27 +1,61 @@
-﻿namespace FileSignature.Logic.Internal.Models
+﻿using Newtonsoft.Json;
+using System.Text;
+
+namespace FileSignature.Logic.Internal.Models
 {
     public class SignatureReaderState : IDisposable
     {
         public int BlockSize;
         public long TotalBlocks;
+        public string FileName;
 
+        [JsonIgnore]
         public FileStream FileStream;
+        [JsonIgnore]
         public Thread ReadingThread;
+        [JsonIgnore]
         public List<Thread> CalculatingThreads;
+        public int CalculatingThreadsCount;
 
-        public Queue<InputQueueElement> InputQueue;
+        [JsonIgnore]
+        public volatile Queue<InputQueueElement> InputQueue;
         public int MaxInputQueueLength;
-        public SortedSet<SignaturePart> OutputQueue;
+        [JsonIgnore]
+        volatile public SortedSet<SignaturePart> OutputQueue;
 
         public volatile bool StopThreadsFlag;
         public volatile bool ErrorFlag;
+        [JsonIgnore]
         public List<Exception> Errors;
 
+        [JsonIgnore]
         public Semaphore InputQueueSemaphore;
+        [JsonIgnore]
         public AutoResetEvent NextBlockNeededEvent;
+        [JsonIgnore]
         public AutoResetEvent NewOutputElementEvent;
+        [JsonIgnore]
         public ManualResetEvent StopThreadsEvent;
-        
+
+
+        public int InputQueueLength
+        {
+            get
+            {
+                lock (InputQueue)
+                    return InputQueue.Count;
+            }
+        }
+
+        public int OutputQueueLength
+        {
+            get
+            {
+                lock(OutputQueue)
+                    return OutputQueue.Count;
+            }
+        }
+
         public void Dispose()
         {
             StopThreadsEvent?.Dispose();

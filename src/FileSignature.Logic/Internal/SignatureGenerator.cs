@@ -25,7 +25,7 @@ namespace FileSignature.Logic.Internal
                 if (fileStream.Length == 0)
                     yield break;
 
-                using (_state = InitializeInfrastructure(fileStream))
+                using (_state = Initialize(fileStream))
                 {
                     StartThreads();
                                         
@@ -41,7 +41,7 @@ namespace FileSignature.Logic.Internal
             }
         }
 
-        public SignatureReaderState InitializeInfrastructure(FileStream fileStream)
+        public SignatureReaderState Initialize(FileStream fileStream)
         {
             var state = new SignatureReaderState();
 
@@ -51,14 +51,15 @@ namespace FileSignature.Logic.Internal
 
                 state.BlockSize = _blockSize;
                 state.TotalBlocks = CalcBlocksCount(state.FileStream.Length);
+                state.FileName = _fileName;
 
-                var calculatingThreadsCount = GetCalculatingThreadsCount(Environment.ProcessorCount, state.TotalBlocks);
-                state.MaxInputQueueLength = calculatingThreadsCount * 2;
+                state.CalculatingThreadsCount = GetCalculatingThreadsCount(Environment.ProcessorCount, state.TotalBlocks);
+                state.MaxInputQueueLength = state.CalculatingThreadsCount * 2;
 
                 state.InputQueue = new Queue<InputQueueElement>(state.MaxInputQueueLength);
                 state.OutputQueue = new SortedSet<SignaturePart>(new SignaturePartComparer());
 
-                state.InputQueueSemaphore = new Semaphore(0, state.MaxInputQueueLength);
+                state.InputQueueSemaphore = new Semaphore(0, state.MaxInputQueueLength + 1);
                 state.NextBlockNeededEvent = new AutoResetEvent(false);
                 state.NewOutputElementEvent = new AutoResetEvent(false);
                 state.StopThreadsEvent = new ManualResetEvent(false);
@@ -69,8 +70,8 @@ namespace FileSignature.Logic.Internal
                 state.ReadingThread.Name = "File reading thread";
                 state.ReadingThread.IsBackground = true;
             
-                state.CalculatingThreads = new List<Thread>(calculatingThreadsCount);
-                for (int i = 0; i < calculatingThreadsCount; i++)
+                state.CalculatingThreads = new List<Thread>(state.CalculatingThreadsCount);
+                for (int i = 0; i < state.CalculatingThreadsCount; i++)
                 {
                     var calculatingThread = new Thread(new CalculatingThreadCode(state).Run);
                     calculatingThread.Name = $"Calculating thread #{i}";
@@ -133,7 +134,7 @@ namespace FileSignature.Logic.Internal
 
                 if (_state.ErrorFlag)
                     lock (_state.Errors)
-                        throw new AggregateException(_state.Errors);
+                        throw new DiagnosticException(_state.Errors, _state);
             }
         }
 
