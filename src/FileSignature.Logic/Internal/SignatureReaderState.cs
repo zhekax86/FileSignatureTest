@@ -17,10 +17,15 @@ namespace FileSignature.Logic.Internal
 
         public Queue<InputQueueElement> inputQueue;
         public SortedSet<SignaturePart> outputQueue;
+        public volatile bool stopThreadsFlag;
 
         public Semaphore inputQueueSemaphore;
         public AutoResetEvent nextBlockNeededEvent;
         public AutoResetEvent newOutputElementEvent;
+        public ManualResetEvent stopThreadsEvent;
+
+
+        public List<Exception> Errors;
         
         public long totalBlocks;
 
@@ -30,6 +35,7 @@ namespace FileSignature.Logic.Internal
             inputQueueSemaphore?.Dispose();
             nextBlockNeededEvent?.Dispose();
             newOutputElementEvent?.Dispose();
+            stopThreadsEvent?.Dispose();
         }
     }
 }

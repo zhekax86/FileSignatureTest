@@ -1,4 +1,5 @@
-﻿using System;
+﻿using FileSignature.Logic.Internal.Threads;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
@@ -26,7 +27,11 @@ namespace FileSignature.Logic.Internal
             {
                 _state.fileStream = File.OpenRead(_fileName);
 
-                _state.totalBlocks = CalcTotalBlocks(_state.fileStream.Length);
+                _state.totalBlocks = CalcBlocksCount(_state.fileStream.Length);
+
+                if (_state.totalBlocks == 0)
+                    yield break;
+
                 var calculatingThreadsCount = GetCalculatingThreadsCount(_state.totalBlocks);
                 _state.MaxInputQueueLength = calculatingThreadsCount * 2;
 
@@ -36,6 +41,9 @@ namespace FileSignature.Logic.Internal
                 _state.inputQueueSemaphore = new Semaphore(0, int.MaxValue);
                 _state.nextBlockNeededEvent = new AutoResetEvent(false);
                 _state.newOutputElementEvent = new AutoResetEvent(false);
+                _state.stopThreadsEvent = new ManualResetEvent(false);
+
+                _state.Errors = new List<Exception>();
 
                 _state.readingThread = new Thread(new ReadingThreadCode(_state).Run);
                 _state.readingThread.Start();
@@ -51,12 +59,19 @@ namespace FileSignature.Logic.Internal
 
                 foreach(var val in ReadOutputQueue())
                     yield return val;
+
+                _state.stopThreadsFlag = true;
+                _state.stopThreadsEvent.Set();
+
+                _state.readingThread.Join();
+                foreach(var thread in _state.calculatingThreads)
+                    thread.Join();
             }
         }
 
         public IEnumerable<SignaturePart> ReadOutputQueue()
         {
-            long currentBlock = 0L;
+            long currentBlock = 1L;
 
             while (currentBlock < _state.totalBlocks)
             {
@@ -93,7 +108,7 @@ namespace FileSignature.Logic.Internal
             }
         }
 
-        public long CalcTotalBlocks(long fileSize)
+        public long CalcBlocksCount(long fileSize)
         {
             var result = fileSize / _blockSize;
             if (fileSize % _blockSize != 0)
