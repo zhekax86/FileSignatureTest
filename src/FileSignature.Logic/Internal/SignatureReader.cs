@@ -32,13 +32,16 @@ namespace FileSignature.Logic.Internal
                 _state.inputQueue = new Queue<InputQueueElement>(calculatingThreadsCount);
                 _state.outputQueue = new SortedSet<SignaturePart>();
 
-                _state.readingThread = new Thread(ReadingThreadCode);
+                _state.inputQueueSemaphore = new Semaphore(0, int.MaxValue);
+                _state.nextBlockNeededEvent = new AutoResetEvent(false);
+
+                _state.readingThread = new Thread(new ReadingThreadCode(_state).Run);
                 _state.readingThread.Start();
 
                 _state.calculatingThreads = new List<Thread>(calculatingThreadsCount);
                 for (int i = 0; i < calculatingThreadsCount; i++)
                 {
-                    var calculatingThread = new Thread(CalculatingThreadCode);
+                    var calculatingThread = new Thread(new CalculatingThreadCode(_state).Run);
                     calculatingThread.Start();
 
                     _state.calculatingThreads.Add(calculatingThread);
@@ -70,53 +73,6 @@ namespace FileSignature.Logic.Internal
 
             return (int)blocksCount;
 
-        }
-
-        public void ReadingThreadCode()
-        {
-            long currentBlockNumber = 0L;
-
-            while(_state.fileStream.Position < _state.fileStream.Length)
-            {
-                // wait here if queue is full
-
-                var element = new InputQueueElement
-                {
-                    BlockNumber = currentBlockNumber++,
-                    buffer = new byte[_blockSize]
-                };
-
-                element.bufferLength = _state.fileStream
-                    .Read(element.buffer, 0, _blockSize);
-
-                _state.inputQueue.Enqueue(element);
-                // notice calculation threads
-            }
-        }
-
-        public void CalculatingThreadCode()
-        {
-            using var hashAlgorithm = SHA256.Create();
-            var enough = false;
-
-            while (!enough)
-            {
-                // wait for new element
-
-                var element = _state.inputQueue.Dequeue();
-
-                var signaturePart = new SignaturePart
-                {
-                    PartNumber = element.BlockNumber,
-                    TotalParts = _state.totalBlocks,
-                    Hash = hashAlgorithm.ComputeHash(element.buffer, 0, element.bufferLength)
-                };
-
-                _state.outputQueue.Add(signaturePart);
-
-                // notice reader to read next block
-
-            }
         }
     }
 }
