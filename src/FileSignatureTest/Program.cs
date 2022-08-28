@@ -16,7 +16,12 @@ internal class Program
 
         foreach(var signaturePart in signatureReader)
         {
-            Console.WriteLine($"Part {signaturePart.PartNumber} of {signaturePart.TotalParts} hash code is {signaturePart.Hash}");
+            Console.WriteLine($"Part {signaturePart.PartNumber} of {signaturePart.TotalParts} hash code is {FormatHash(signaturePart.Hash)}");
         }
+    }
+
+    private static string FormatHash(byte[] hash)
+    {
+        return BitConverter.ToString(hash).Replace("-", string.Empty);
     }
 }
