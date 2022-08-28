@@ -56,6 +56,7 @@ namespace FileSignature.Logic.Internal
                 state.CalculatingThreadsCount = GetCalculatingThreadsCount(Environment.ProcessorCount, state.TotalBlocks);
                 state.MaxInputQueueLength = state.CalculatingThreadsCount * 2;
 
+                state.BufferPool = new BufferPool(_blockSize);
                 state.InputQueue = new Queue<InputQueueElement>(state.MaxInputQueueLength);
                 state.OutputQueue = new SortedSet<SignaturePart>(new SignaturePartComparer());
 

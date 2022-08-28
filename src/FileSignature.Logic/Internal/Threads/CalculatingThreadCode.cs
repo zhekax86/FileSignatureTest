@@ -35,6 +35,9 @@ namespace FileSignature.Logic.Internal.Threads
                     Hash = hashAlgorithm.ComputeHash(element.Buffer, 0, element.BufferLength)
                 };
 
+                lock (State.BufferPool)
+                    State.BufferPool.Return(element.Buffer);
+
                 lock (State.OutputQueue)
                     State.OutputQueue.Add(signaturePart);
 

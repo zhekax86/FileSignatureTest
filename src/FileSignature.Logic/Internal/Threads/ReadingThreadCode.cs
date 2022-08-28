@@ -24,9 +24,11 @@ namespace FileSignature.Logic.Internal.Threads
                 
                 var element = new InputQueueElement
                 {
-                    BlockNumber = currentBlockNumber++,
-                    Buffer = new byte[State.BlockSize]
+                    BlockNumber = currentBlockNumber++
                 };
+
+                lock(State.BufferPool)
+                    element.Buffer = State.BufferPool.Get();
 
                 element.BufferLength = State.FileStream
                     .Read(element.Buffer, 0, State.BlockSize);

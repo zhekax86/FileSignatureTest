@@ -18,6 +18,8 @@ namespace FileSignature.Logic.Internal.Models
         public int CalculatingThreadsCount;
 
         [JsonIgnore]
+        public BufferPool BufferPool;
+        [JsonIgnore]
         public volatile Queue<InputQueueElement> InputQueue;
         public int MaxInputQueueLength;
         [JsonIgnore]
@@ -69,6 +71,9 @@ namespace FileSignature.Logic.Internal.Models
 
             InputQueueSemaphore?.Dispose();
             InputQueueSemaphore = null;
+
+            BufferPool?.Dispose();
+            BufferPool = null;
         }
     }
 }
