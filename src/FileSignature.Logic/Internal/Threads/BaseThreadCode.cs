@@ -22,8 +22,8 @@ namespace FileSignature.Logic.Internal.Threads
                 lock(State.Errors)
                     State.Errors.Add(exception);
 
-                State.stopThreadsFlag = true;
-                State.stopThreadsEvent.Set();
+                State.StopThreadsFlag = true;
+                State.StopThreadsEvent.Set();
             }
         }
 

@@ -3,34 +3,38 @@
     public class SignatureReaderState : IDisposable
     {
         public int BlockSize;
+        public long TotalBlocks;
+
+        public FileStream FileStream;
+        public Thread ReadingThread;
+        public List<Thread> CalculatingThreads;
+
+        public Queue<InputQueueElement> InputQueue;
         public int MaxInputQueueLength;
+        public SortedSet<SignaturePart> OutputQueue;
 
-        public FileStream fileStream;
-        public Thread readingThread;
-        public List<Thread> calculatingThreads;
-
-        public Queue<InputQueueElement> inputQueue;
-        public SortedSet<SignaturePart> outputQueue;
-        public volatile bool stopThreadsFlag;
-        public volatile bool errorFlag;
-
-        public Semaphore inputQueueSemaphore;
-        public AutoResetEvent nextBlockNeededEvent;
-        public AutoResetEvent newOutputElementEvent;
-        public ManualResetEvent stopThreadsEvent;
-
-
+        public volatile bool StopThreadsFlag;
+        public volatile bool ErrorFlag;
         public List<Exception> Errors;
 
-        public long totalBlocks;
-
+        public Semaphore InputQueueSemaphore;
+        public AutoResetEvent NextBlockNeededEvent;
+        public AutoResetEvent NewOutputElementEvent;
+        public ManualResetEvent StopThreadsEvent;
+        
         public void Dispose()
         {
-            fileStream?.Dispose();
-            inputQueueSemaphore?.Dispose();
-            nextBlockNeededEvent?.Dispose();
-            newOutputElementEvent?.Dispose();
-            stopThreadsEvent?.Dispose();
+            StopThreadsEvent?.Dispose();
+            StopThreadsEvent = null;
+
+            NewOutputElementEvent?.Dispose();
+            NewOutputElementEvent = null;
+
+            NextBlockNeededEvent?.Dispose();
+            NextBlockNeededEvent = null;
+
+            InputQueueSemaphore?.Dispose();
+            InputQueueSemaphore = null;
         }
     }
 }

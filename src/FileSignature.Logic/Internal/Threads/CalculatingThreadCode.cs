@@ -20,25 +20,25 @@ namespace FileSignature.Logic.Internal.Threads
             {
                 WaitForNewElement();
 
-                if (State.stopThreadsFlag)
+                if (State.StopThreadsFlag)
                     return;
 
                 InputQueueElement element;
-                lock (State.inputQueue)
-                    element = State.inputQueue.Dequeue();
-                State.nextBlockNeededEvent.Set();
+                lock (State.InputQueue)
+                    element = State.InputQueue.Dequeue();
+                State.NextBlockNeededEvent.Set();
 
                 var signaturePart = new SignaturePart
                 {
                     PartNumber = element.BlockNumber,
-                    TotalParts = State.totalBlocks,
+                    TotalParts = State.TotalBlocks,
                     Hash = hashAlgorithm.ComputeHash(element.Buffer, 0, element.BufferLength)
                 };
 
-                lock (State.outputQueue)
-                    State.outputQueue.Add(signaturePart);
+                lock (State.OutputQueue)
+                    State.OutputQueue.Add(signaturePart);
 
-                State.newOutputElementEvent.Set();
+                State.NewOutputElementEvent.Set();
             }
         }
 
@@ -46,8 +46,8 @@ namespace FileSignature.Logic.Internal.Threads
         {
             _waitHandlers ??= new WaitHandle[]
             {
-                State.stopThreadsEvent,
-                State.inputQueueSemaphore
+                State.StopThreadsEvent,
+                State.InputQueueSemaphore
             };
 
             WaitHandle.WaitAny(_waitHandlers);

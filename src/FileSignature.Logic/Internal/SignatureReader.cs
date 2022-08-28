@@ -7,6 +7,7 @@ namespace FileSignature.Logic.Internal
     {
         private readonly string _fileName;
         private readonly int _blockSize;
+
         private SignatureReaderState _state;
 
         private WaitHandle[] _waitHandles;
@@ -17,63 +18,95 @@ namespace FileSignature.Logic.Internal
             _blockSize = blockSize;
         }
 
-
         public IEnumerable<SignaturePart> Read()
         {
-            using(_state = new SignatureReaderState())
-            {
-                _state.fileStream = File.OpenRead(_fileName);
-
-                _state.BlockSize = _blockSize;
-                _state.totalBlocks = CalcBlocksCount(_state.fileStream.Length);
-
-                if (_state.totalBlocks == 0)
+            using (var fileStream = File.OpenRead(_fileName))
+            { 
+                if (fileStream.Length == 0)
                     yield break;
 
-                var calculatingThreadsCount = GetCalculatingThreadsCount(_state.totalBlocks);
-                _state.MaxInputQueueLength = calculatingThreadsCount * 2;
+                using (_state = InitializeInfrastructure(fileStream))
+                {
+                    StartThreads();
 
-                _state.inputQueue = new Queue<InputQueueElement>(calculatingThreadsCount);
-                _state.outputQueue = new SortedSet<SignaturePart>(new SignaturePartComparer());
+                    foreach (var val in ReadOutputQueue())
+                        yield return val;
 
-                _state.inputQueueSemaphore = new Semaphore(0, int.MaxValue);
-                _state.nextBlockNeededEvent = new AutoResetEvent(false);
-                _state.newOutputElementEvent = new AutoResetEvent(false);
-                _state.stopThreadsEvent = new ManualResetEvent(false);
+                    StopThreads();
+                }
+            }
+        }
 
-                _state.Errors = new List<Exception>();
+        public SignatureReaderState InitializeInfrastructure(FileStream fileStream)
+        {
+            var state = new SignatureReaderState();
 
-                _state.readingThread = new Thread(new ReadingThreadCode(_state).Run);
-                _state.readingThread.Start();
+            try 
+            { 
+                state.FileStream = fileStream;
 
-                _state.calculatingThreads = new List<Thread>(calculatingThreadsCount);
+                state.BlockSize = _blockSize;
+                state.TotalBlocks = CalcBlocksCount(state.FileStream.Length);
+
+                var calculatingThreadsCount = GetCalculatingThreadsCount(Environment.ProcessorCount, state.TotalBlocks);
+                state.MaxInputQueueLength = calculatingThreadsCount * 2;
+
+                state.InputQueue = new Queue<InputQueueElement>(state.MaxInputQueueLength);
+                state.OutputQueue = new SortedSet<SignaturePart>(new SignaturePartComparer());
+
+                state.InputQueueSemaphore = new Semaphore(0, state.MaxInputQueueLength);
+                state.NextBlockNeededEvent = new AutoResetEvent(false);
+                state.NewOutputElementEvent = new AutoResetEvent(false);
+                state.StopThreadsEvent = new ManualResetEvent(false);
+
+                state.Errors = new List<Exception>();
+
+                state.ReadingThread = new Thread(new ReadingThreadCode(state).Run);
+                state.ReadingThread.Name = "File reading thread";
+                state.ReadingThread.IsBackground = true;
+            
+                state.CalculatingThreads = new List<Thread>(calculatingThreadsCount);
                 for (int i = 0; i < calculatingThreadsCount; i++)
                 {
-                    var calculatingThread = new Thread(new CalculatingThreadCode(_state).Run);
-                    calculatingThread.Start();
-
-                    _state.calculatingThreads.Add(calculatingThread);
+                    var calculatingThread = new Thread(new CalculatingThreadCode(state).Run);
+                    calculatingThread.Name = $"Calculationg thread #{i}";
+                    calculatingThread.IsBackground = true;
+                
+                    state.CalculatingThreads.Add(calculatingThread);
                 }
 
-                foreach(var val in ReadOutputQueue())
-                    yield return val;
-
-                _state.stopThreadsFlag = true;
-                _state.stopThreadsEvent.Set();
-
-                _state.readingThread.Join();
-                foreach(var thread in _state.calculatingThreads)
-                    thread.Join();
-
-
+                return state;
             }
+            catch
+            {
+                state.Dispose();
+                throw;
+            }
+        }
+
+        public void StartThreads()
+        {
+            _state.ReadingThread.Start();
+
+            foreach (var thread in _state.CalculatingThreads)
+                thread.Start();
+        }
+
+        public void StopThreads()
+        {
+            _state.StopThreadsFlag = true;
+            _state.StopThreadsEvent.Set();
+
+            _state.ReadingThread.Join();
+            foreach (var thread in _state.CalculatingThreads)
+                thread.Join();
         }
 
         public IEnumerable<SignaturePart> ReadOutputQueue()
         {
             long currentBlock = 1L;
 
-            while (currentBlock <= _state.totalBlocks)
+            while (currentBlock <= _state.TotalBlocks)
             {
                 yield return GetBlock(currentBlock);
                 currentBlock++;
@@ -87,9 +120,9 @@ namespace FileSignature.Logic.Internal
             while (true)
             {
 
-                lock (_state.outputQueue)
+                lock (_state.OutputQueue)
                 {
-                    var minBlock = _state.outputQueue.Min;
+                    var minBlock = _state.OutputQueue.Min;
 
                     if (minBlock == null)
                         minBlockNumber = -1L;
@@ -98,7 +131,7 @@ namespace FileSignature.Logic.Internal
                         minBlockNumber = minBlock.PartNumber;
                         if (minBlockNumber == blockNumber)
                         {
-                            _state.outputQueue.Remove(minBlock);
+                            _state.OutputQueue.Remove(minBlock);
                             return minBlock;
                         }
                     }
@@ -106,7 +139,7 @@ namespace FileSignature.Logic.Internal
 
                 WaitForNewOutputElement();
 
-                if (_state.errorFlag)
+                if (_state.ErrorFlag)
                     lock (_state.Errors)
                         throw new AggregateException(_state.Errors);
             }
@@ -116,8 +149,8 @@ namespace FileSignature.Logic.Internal
         {
             _waitHandles ??= new WaitHandle[]
             {
-                _state.stopThreadsEvent,
-                _state.newOutputElementEvent
+                _state.StopThreadsEvent,
+                _state.NewOutputElementEvent
             };
 
             WaitHandle.WaitAny(_waitHandles);
@@ -132,10 +165,8 @@ namespace FileSignature.Logic.Internal
             return result;
         }
 
-        public static int GetCalculatingThreadsCount(long blocksCount)
+        public static int GetCalculatingThreadsCount(int processorCount, long blocksCount)
         {
-            var processorCount = Environment.ProcessorCount;
-
             if (blocksCount > processorCount)
                 return processorCount;
 
