@@ -1,5 +1,5 @@
 ﻿using FileSignature.Logic;
-using FileSignature.Logic.Internal;
+using FileSignature.Logic.Internal.Models;
 using FluentAssertions;
 
 namespace FileSignature.UnitTests

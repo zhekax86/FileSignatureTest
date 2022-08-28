@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace FileSignature.Logic.Internal
+﻿namespace FileSignature.Logic.Internal.Models
 {
     public class SignatureReaderState : IDisposable
     {
@@ -18,6 +12,7 @@ namespace FileSignature.Logic.Internal
         public Queue<InputQueueElement> inputQueue;
         public SortedSet<SignaturePart> outputQueue;
         public volatile bool stopThreadsFlag;
+        public volatile bool errorFlag;
 
         public Semaphore inputQueueSemaphore;
         public AutoResetEvent nextBlockNeededEvent;
@@ -26,7 +21,7 @@ namespace FileSignature.Logic.Internal
 
 
         public List<Exception> Errors;
-        
+
         public long totalBlocks;
 
         public void Dispose()

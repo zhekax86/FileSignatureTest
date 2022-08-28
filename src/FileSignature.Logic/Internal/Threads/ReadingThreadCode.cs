@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using FileSignature.Logic.Internal.Models;
 
 namespace FileSignature.Logic.Internal.Threads
 {
@@ -29,11 +25,11 @@ namespace FileSignature.Logic.Internal.Threads
                 var element = new InputQueueElement
                 {
                     BlockNumber = currentBlockNumber++,
-                    buffer = new byte[State.BlockSize]
+                    Buffer = new byte[State.BlockSize]
                 };
 
-                element.bufferLength = State.fileStream
-                    .Read(element.buffer, 0, State.BlockSize);
+                element.BufferLength = State.fileStream
+                    .Read(element.Buffer, 0, State.BlockSize);
 
                 lock (State.inputQueue)
                     State.inputQueue.Enqueue(element);

@@ -1,4 +1,6 @@
-﻿namespace FileSignature.Logic.Internal.Threads
+﻿using FileSignature.Logic.Internal.Models;
+
+namespace FileSignature.Logic.Internal.Threads
 {
     public abstract class BaseThreadCode
     {

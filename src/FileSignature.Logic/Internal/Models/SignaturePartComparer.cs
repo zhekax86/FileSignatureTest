@@ -1,4 +1,4 @@
-﻿namespace FileSignature.Logic.Internal
+﻿namespace FileSignature.Logic.Internal.Models
 {
     public class SignaturePartComparer : IComparer<SignaturePart>
     {

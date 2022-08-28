@@ -1,4 +1,5 @@
 ﻿using System.Security.Cryptography;
+using FileSignature.Logic.Internal.Models;
 
 namespace FileSignature.Logic.Internal.Threads
 {
@@ -31,13 +32,12 @@ namespace FileSignature.Logic.Internal.Threads
                 {
                     PartNumber = element.BlockNumber,
                     TotalParts = State.totalBlocks,
-                    Hash = hashAlgorithm.ComputeHash(element.buffer, 0, element.bufferLength)
+                    Hash = hashAlgorithm.ComputeHash(element.Buffer, 0, element.BufferLength)
                 };
 
                 lock (State.outputQueue)
                     State.outputQueue.Add(signaturePart);
 
-                // notice reader to read next block
                 State.newOutputElementEvent.Set();
             }
         }
