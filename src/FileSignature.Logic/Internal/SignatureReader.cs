@@ -28,9 +28,10 @@ namespace FileSignature.Logic.Internal
 
                 _state.totalBlocks = CalcTotalBlocks(_state.fileStream.Length);
                 var calculatingThreadsCount = GetCalculatingThreadsCount(_state.totalBlocks);
+                _state.MaxInputQueueLength = calculatingThreadsCount * 2;
 
                 _state.inputQueue = new Queue<InputQueueElement>(calculatingThreadsCount);
-                _state.outputQueue = new SortedSet<SignaturePart>();
+                _state.outputQueue = new SortedSet<SignaturePart>(new SignaturePartComparer());
 
                 _state.inputQueueSemaphore = new Semaphore(0, int.MaxValue);
                 _state.nextBlockNeededEvent = new AutoResetEvent(false);
@@ -50,8 +51,6 @@ namespace FileSignature.Logic.Internal
 
                 foreach(var val in ReadOutputQueue())
                     yield return val;
-
-                
             }
         }
 
@@ -94,8 +93,6 @@ namespace FileSignature.Logic.Internal
             }
         }
 
-
-
         public long CalcTotalBlocks(long fileSize)
         {
             var result = fileSize / _blockSize;
@@ -113,7 +110,6 @@ namespace FileSignature.Logic.Internal
                 return processorCount;
 
             return (int)blocksCount;
-
         }
     }
 }

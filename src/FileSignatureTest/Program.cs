@@ -1,4 +1,5 @@
 ﻿using CommandLine;
+using FileSignature.Logic;
 using FileSignatureTest;
 
 internal class Program
@@ -11,6 +12,11 @@ internal class Program
 
     private static void Run(FileSignatureOptions options)
     {
+        var signatureReader = FileReader.GetSignature(options.InputFile, options.BlockSize);
 
+        foreach(var signaturePart in signatureReader)
+        {
+            Console.WriteLine($"Part {signaturePart.PartNumber} of {signaturePart.TotalParts} hash code is {signaturePart.Hash}");
+        }
     }
 }
