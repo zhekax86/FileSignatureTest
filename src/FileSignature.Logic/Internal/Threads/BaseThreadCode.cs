@@ -29,5 +29,66 @@ namespace FileSignature.Logic.Internal.Threads
         }
 
         protected abstract void OnRun();
+
+        protected void LockInputQueue(Action action)
+        {
+            UsingLock(ref State.InputQueueLock, action);
+        }
+
+        protected T LockInputQueue<T>(Func<T> func)
+        {
+            return UsingLock(ref State.InputQueueLock, func);
+        }
+
+        protected void LockBufferPool(Action action)
+        {
+            UsingLock(ref State.BufferPoolLock, action);
+        }
+        protected T LockBufferPool<T>(Func<T> func)
+        {
+            return UsingLock(ref State.BufferPoolLock, func);
+        }
+
+        protected void LockOutputQueue(Action action)
+        {
+            UsingLock(ref State.OutputQueueLock, action);
+        }
+
+        protected T LockOutputQueue<T>(Func<T> func)
+        {
+            return UsingLock(ref State.OutputQueueLock, func);
+        }
+
+        private void UsingLock(ref SpinLock spinLock, Action action)
+        {
+            var lockTaken = false;
+
+            try
+            {
+                spinLock.Enter(ref lockTaken);
+                action();
+            }
+            finally
+            {
+                if (lockTaken)
+                    spinLock.Exit();
+            }
+        }
+
+        private T UsingLock<T>(ref SpinLock spinLock, Func<T> func)
+        {
+            var lockTaken = false;
+
+            try
+            {
+                spinLock.Enter(ref lockTaken);
+                return func();
+            }
+            finally
+            {
+                if (lockTaken)
+                    spinLock.Exit();
+            }
+        }
     }
 }

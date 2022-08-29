@@ -31,6 +31,13 @@ namespace FileSignature.Logic.Internal.Models
         public List<Exception> Errors;
 
         [JsonIgnore]
+        public SpinLock BufferPoolLock;
+        [JsonIgnore]
+        public SpinLock InputQueueLock;
+        [JsonIgnore]
+        public SpinLock OutputQueueLock;
+        
+        [JsonIgnore]
         public Semaphore InputQueueSemaphore;
         [JsonIgnore]
         public AutoResetEvent NextBlockNeededEvent;

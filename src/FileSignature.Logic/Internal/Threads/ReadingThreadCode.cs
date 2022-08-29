@@ -24,17 +24,14 @@ namespace FileSignature.Logic.Internal.Threads
                 
                 var element = new InputQueueElement
                 {
-                    BlockNumber = currentBlockNumber++
+                    BlockNumber = currentBlockNumber++,
+                    Buffer = LockBufferPool(() => State.BufferPool.Get())
                 };
-
-                lock(State.BufferPool)
-                    element.Buffer = State.BufferPool.Get();
 
                 element.BufferLength = State.FileStream
                     .Read(element.Buffer, 0, State.BlockSize);
 
-                lock (State.InputQueue)
-                    State.InputQueue.Enqueue(element);
+                LockInputQueue(() => State.InputQueue.Enqueue(element));
 
                 State.InputQueueSemaphore.Release();
             }
@@ -42,10 +39,9 @@ namespace FileSignature.Logic.Internal.Threads
 
         private void WaitIfInputQueueIsFull()
         {
-            int queueLength;
+            int queueLength = 0;
 
-            lock (State.InputQueue)
-                queueLength = State.InputQueue.Count;
+            queueLength = LockInputQueue(() => State.InputQueue.Count);
 
             if (queueLength >= State.MaxInputQueueLength)
                 WaitEvents();
@@ -61,6 +57,5 @@ namespace FileSignature.Logic.Internal.Threads
 
             WaitHandle.WaitAny(_waitHandlers);
         }
-        
     }
 }

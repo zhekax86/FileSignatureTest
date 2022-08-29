@@ -23,9 +23,7 @@ namespace FileSignature.Logic.Internal.Threads
                 if (State.StopThreadsFlag)
                     return;
 
-                InputQueueElement element;
-                lock (State.InputQueue)
-                    element = State.InputQueue.Dequeue();
+                var element = LockInputQueue(() => State.InputQueue.Dequeue());
                 State.NextBlockNeededEvent.Set();
 
                 var signaturePart = new SignaturePart
@@ -35,12 +33,8 @@ namespace FileSignature.Logic.Internal.Threads
                     Hash = hashAlgorithm.ComputeHash(element.Buffer, 0, element.BufferLength)
                 };
 
-                lock (State.BufferPool)
-                    State.BufferPool.Return(element.Buffer);
-
-                lock (State.OutputQueue)
-                    State.OutputQueue.Add(signaturePart);
-
+                LockBufferPool(() => State.BufferPool.Return(element.Buffer));
+                LockOutputQueue(() => State.OutputQueue.Add(signaturePart));
                 State.NewOutputElementEvent.Set();
             }
         }

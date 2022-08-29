@@ -54,7 +54,7 @@ namespace FileSignature.Logic.Internal
                 state.FileName = _fileName;
 
                 state.CalculatingThreadsCount = GetCalculatingThreadsCount(Environment.ProcessorCount, state.TotalBlocks);
-                state.MaxInputQueueLength = state.CalculatingThreadsCount * 2;
+                state.MaxInputQueueLength = state.CalculatingThreadsCount * 4;
 
                 state.BufferPool = new BufferPool(_blockSize);
                 state.InputQueue = new Queue<InputQueueElement>(state.MaxInputQueueLength);
@@ -64,6 +64,10 @@ namespace FileSignature.Logic.Internal
                 state.NextBlockNeededEvent = new AutoResetEvent(false);
                 state.NewOutputElementEvent = new AutoResetEvent(false);
                 state.StopThreadsEvent = new ManualResetEvent(false);
+
+                state.BufferPoolLock = new SpinLock();
+                state.InputQueueLock = new SpinLock();
+                state.OutputQueueLock = new SpinLock();
 
                 state.Errors = new List<Exception>();
 
@@ -114,8 +118,12 @@ namespace FileSignature.Logic.Internal
 
             while (true)
             {
-                lock (_state.OutputQueue)
+                var lockTaken = false;
+                
+                try
                 {
+                    _state.OutputQueueLock.Enter(ref lockTaken);
+
                     var minBlock = _state.OutputQueue.Min;
 
                     if (minBlock == null)
@@ -129,6 +137,11 @@ namespace FileSignature.Logic.Internal
                             return minBlock;
                         }
                     }
+                }
+                finally
+                {
+                    if (lockTaken)
+                        _state.OutputQueueLock.Exit();
                 }
 
                 WaitForNewOutputElement();
