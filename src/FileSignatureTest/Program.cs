@@ -42,9 +42,9 @@ internal class Program
             return;
         }
 
-        var signatureGenerator = FileReader.GetSignature(fileName, blockSize);
+        var signature = FileReader.GetSignature(fileName, blockSize);
 
-        foreach (var signaturePart in signatureGenerator)
+        foreach (var signaturePart in signature)
         {
             Console.WriteLine($"Part {signaturePart.PartNumber} of {signaturePart.TotalParts} hash code is {FormatHash(signaturePart.Hash)}");
         }
